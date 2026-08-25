@@ -10,7 +10,18 @@
  * このクライアントにもそれらのエンドポイントは置いていない。
  */
 
-const BASE_URL = "https://api.ekispert.com/v1/json";
+/**
+ * **ホストは `api.ekispert.jp`。`api.ekispert.com` ではない。**
+ *
+ * 公式のAPIリファレンス（docs.ekispert.com）には `https://api.ekispert.com/v1/...` と
+ * 書かれているが、**このホストは443が応答せず接続がタイムアウトする**。実際に応答するのは
+ * `api.ekispert.jp` で、こちらは60ms程度で駅すぱあと自身のエラー形式
+ * （`ResultSet.Error.code`）を返す。2026-08-26 に両方へ接続して確認した。
+ *
+ * ドキュメントを信じて `.com` にすると、症状が「5秒でタイムアウト」になり
+ * 原因がアクセスキーや通信環境の問題に見えるため、ここを勝手に直さないこと。
+ */
+const BASE_URL = "https://api.ekispert.jp/v1/json";
 
 /**
  * 1本あたりの制限時間。
@@ -71,16 +82,45 @@ export async function callEkispert(
     );
   }
 
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch {
+    // 本文が読めない場合はステータスだけで判断する。
+    if (!res.ok) throw new EkispertError(`駅すぱあとが HTTP ${res.status} を返しました`, res.status);
+    throw new EkispertError("駅すぱあとの応答をJSONとして読めませんでした");
+  }
+
+  // 駅すぱあとは失敗を `ResultSet.Error` に入れて返す（401/403のときは本文にも入る）。
+  // **成功ステータスでもここにエラーが入ることがある**ため、res.ok に関わらず先に見る。
+  // 見ないと「結果0件」に化けて、キーの誤りや上限超過が画面から分からなくなる。
+  const apiError = readApiError(json);
+  if (apiError) {
+    throw new EkispertError(`駅すぱあとがエラーを返しました（${apiError}）`, res.status);
+  }
+
   if (!res.ok) {
     // 401/403 はキーの問題、429 は上限。ステータスだけを外へ出す。
     throw new EkispertError(`駅すぱあとが HTTP ${res.status} を返しました`, res.status);
   }
 
-  try {
-    return await res.json();
-  } catch {
-    throw new EkispertError("駅すぱあとの応答をJSONとして読めませんでした");
-  }
+  return json;
+}
+
+/** `ResultSet.Error` があれば、外へ出してよい粒度の文言へ落とす。無ければ null。 */
+function readApiError(json: unknown): string | null {
+  if (typeof json !== "object" || json === null) return null;
+  const resultSet = (json as { ResultSet?: unknown }).ResultSet;
+  if (typeof resultSet !== "object" || resultSet === null) return null;
+
+  const error = (resultSet as { Error?: unknown }).Error;
+  if (typeof error !== "object" || error === null) return null;
+
+  const message = (error as { Message?: unknown }).Message;
+  const code = (error as { code?: unknown }).code;
+  const parts = [typeof code === "string" ? code : null, typeof message === "string" ? message : null];
+  const text = parts.filter(Boolean).join(" ");
+  return text || "詳細不明";
 }
 
 /**
