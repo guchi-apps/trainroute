@@ -1,21 +1,15 @@
-import { auth } from "@/auth";
+import { requireUserEmail } from "@/lib/auth-user";
 import { createRoute, listRoutes, parseRouteInput } from "@/lib/routes";
 
-/** ログイン中の利用者のメールアドレス。未ログインなら null。 */
-async function sessionEmail(): Promise<string | null> {
-  const session = await auth();
-  return session?.user?.email?.toLowerCase() ?? null;
-}
-
 export async function GET() {
-  const email = await sessionEmail();
+  const email = await requireUserEmail();
   if (!email) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   return Response.json({ routes: await listRoutes(email) });
 }
 
 export async function POST(request: Request) {
-  const email = await sessionEmail();
+  const email = await requireUserEmail();
   if (!email) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: unknown;

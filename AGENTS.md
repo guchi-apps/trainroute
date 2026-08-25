@@ -24,7 +24,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 | 本番URL | https://trainroute.gucchii.com |
 | ポート | 3112（PM2、プロセス名 `trainroute`） |
 | DB | MariaDB `app_trainroute`（Prisma） |
-| 認証 | NextAuth v5（Google）+ `ALLOWED_EMAIL` |
+| 認証 | Supabase Auth（Google）+ `ALLOWED_EMAIL` |
 | 外部API | 駅すぱあと API フリープラン |
 
 ## 外部APIの制約（設計の前提）
@@ -40,6 +40,34 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 **運行情報（遅延）は未実装。** 当初はODPTを使う計画だったが、ODPTは阪急電鉄・大阪メトロ・
 JR西日本のデータを持たない。経緯と選択肢は `src/lib/transit/index.ts` の冒頭コメントにある。
 `fetchServiceStatus` は常に null を返す。**null は「平常運転」ではなく「分からない」を意味する。**
+
+## 認証（Supabase Auth）
+
+**Supabase プロジェクトは他アプリと共有している。** そのため「Supabase でログインできること」と
+「このアプリを使ってよいこと」は別に判定する。許可判定は `ALLOWED_EMAIL` で行い、
+`/auth/callback` と `proxy.ts` の**両方**に入れてある。片方だけに寄せないこと。
+
+- セッションの検証は `src/proxy.ts` → `src/lib/supabase/proxy-session.ts` で毎リクエスト行う
+- 検証済みのアドレスは `x-trainroute-user-email` ヘッダーで後段へ渡す。proxy が必ず上書き／削除
+  するため詐称は届かない。ページ・APIは `requireUserEmail()`（`src/lib/auth-user.ts`）で読む
+- **ページ側で `auth.getUser()` を呼び直さない。** 毎回 Supabase へ往復するため、1リクエストで
+  2回叩くと待ち時間がそのまま倍になる
+- `getUser()` が通信不達・5xx・429 のときはログイン画面へ戻さず 503 を返す。有効なセッションを
+  持つ利用者を、電波が悪いだけでログインし直させないため
+- `/api/*` は proxy でリダイレクトせず素通しし、各ルートハンドラが 401 JSON を返す
+  （HTMLのログイン画面を返すと fetch 側が解釈できない）
+- GUIの無い環境で画面を確認するときは `DISABLE_AUTH=true`。**`NODE_ENV=production` では常に無効**
+
+**`NEXT_PUBLIC_SUPABASE_*` はビルド時に焼き込まれる。実行時の `.env` では変えられない。**
+`proxy.ts` も `src/lib/supabase/server.ts` も焼き込み値を使うため、Supabaseプロジェクトや
+publishable keyを差し替えたときは **`.env` の更新では足りず、再デプロイ（＝再ビルド）が要る**。
+`deploy.yml` の `update_env NEXT_PUBLIC_SUPABASE_*` はこの経路には効かない（実質の設定は
+buildジョブへ渡している値のほう）。2026-08-26 に本番と同じ構成で実測して確認した。
+
+**本番URLを Supabase の Redirect URLs へ登録する作業は不要。** 共有プロジェクトの Redirect URLs は
+本番サブドメインをワイルドカードで登録済みで、`https://trainroute.gucchii.com/auth/callback` は
+既に覆われている（`_docs` の `knowledge/supabase.md`）。ワイルドカードに含まれないホスト
+（`localhost`・LAN実機確認の `sslip.io` 等）だけは個別の確認が要る。
 
 ## ブランチ
 
@@ -129,12 +157,20 @@ Status = 今どこにいるか、Label = どんな性質・条件があるか、
 | ラベル | 意味 |
 |---|---|
 | `00.check-user` | ユーザーの確認・指示が必要。どの段階でも併用する |
-| `00.qa-answered` | 質問への回答のみ完了（`00.check-user` と常に併用） |
+| `01.check-input` | 質問・確認への回答待ち（`00.check-user` の理由） |
+| `01.check-answered` | 回答済み。読むだけで実装は再開しない（同上） |
+| `01.check-blocked` | 続け方の指示待ち。エージェントは停止（同上） |
+| `01.check-plan` | 計画の承認待ち（同上） |
+| `01.check-merge` | PRのマージ待ち（同上） |
 | `11.local` | ローカル（VSCode等）で対応中。付いている間は無人実行を起動しない |
 | `21.plan-required` | 実装前に計画を提示し承認を得る |
-| `22.merge-confirm-required` | 内容によらず、developへのマージ前に必ず `00.check-user` を付ける |
+| `22.merge-confirm-required` | 内容によらず、developへのマージ前に人間の確認を挟む |
 | `23.preview-required` | PR作成前に開発サーバーでの画面確認を必須にする |
 | `24.screenshot-required` | PR作成前にスクリーンショット取得を必須にする |
+| `25.artifact-required` | PR作成前にアーティファクトでの視覚確認を必須にする |
+
+ラベルの正は `gh label list --repo guchi-apps/issue-deck --limit 100`。ここが古くなったら
+そちらに合わせる。
 
 ## バージョンと更新履歴
 
@@ -145,7 +181,7 @@ Status = 今どこにいるか、Label = どんな性質・条件があるか、
 
 以下に該当する変更は自動マージせず `00.check-user` を付与してユーザーの確認を待つ。
 
-- 認証・認可（`src/auth.ts`・`src/proxy.ts`・`src/lib/internal-auth.ts`・`src/lib/allowed-users.ts`）
+- 認証・認可（`src/proxy.ts`・`src/lib/supabase/**`・`src/lib/internal-auth.ts`・`src/lib/allowed-users.ts`・`src/lib/auth-user.ts`・`src/lib/auth-header.ts`・`src/lib/dev-auth.ts`）
 - DBスキーマ変更・マイグレーション（`prisma/**`）
 - 本番環境の設定（`deploy/**`）
 - GitHub Actionsやデプロイ設定（`.github/workflows/**`）

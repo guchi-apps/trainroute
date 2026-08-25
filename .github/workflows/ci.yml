@@ -42,6 +42,10 @@ jobs:
           NODE_ENV: production
           # ビルド時にDBへは接続しないが、Prismaがdatasourceの解決で値を要求する。
           DATABASE_URL: mysql://placeholder:placeholder@127.0.0.1:3306/app_trainroute
+          # NEXT_PUBLIC_* はビルド時にクライアントバンドルへ埋め込まれるため、値が無いと
+          # ビルドが通らない。CIでは実際にSupabaseへ接続しないためダミーでよい。
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
 
   notify:
     needs: [lint-and-build]

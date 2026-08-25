@@ -22,6 +22,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/" className="text-base font-semibold tracking-tight">
               trainroute
             </Link>
+            {/*
+              ログアウトはフォームのPOST。クライアントJSのハイドレーション前でも押せる必要があり、
+              GETにするとリンクの先読みで意図せずログアウトさせられるため。
+              未ログインでもこのヘッダーは出るが、押しても /login へ戻るだけで害はない。
+            */}
+            <form action="/auth/signout" method="post">
+              <button type="submit" className="text-xs text-muted hover:text-foreground">
+                ログアウト
+              </button>
+            </form>
           </div>
         </header>
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>

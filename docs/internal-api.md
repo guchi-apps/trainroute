@@ -2,7 +2,7 @@
 
 同一VPS上で動く他アプリ（現状は [guchi-apps/aide](https://github.com/guchi-apps/aide)）が、
 登録済みの通勤経路を参照するためのGET API。ブラウザからの利用は想定しておらず、
-NextAuthのセッションではなく**共有シークレット1本**で守る。
+Supabase のセッションではなく**共有シークレット1本**で守る。
 
 - 経緯: guchi-apps/aide#33、guchi-apps/question#7
 - 形は subscription-lists の同名ドキュメントに揃えている（AIDE側のコネクタが同じ扱いにできるため）
@@ -101,12 +101,27 @@ curl -s -o /dev/null -w '%{http_code}\n' "http://127.0.0.1:3112/api/internal/rou
 
 ## 環境変数の配線
 
-| 場所 | 設定 |
-| --- | --- |
-| 1Password | `apps/trainroute` の `internal-api-key` フィールド（**正**） |
-| GitHub Secret | `INTERNAL_API_KEY`。`scripts/sync-github-secrets.sh --only INTERNAL_API_KEY` で1Passwordから同期する |
-| 対応表 | `.github/secrets-manifest.tsv` |
-| 本番 `.env` | `.github/workflows/deploy.yml` が `update_env` で書き込む |
+このキーは**どこかから発行されるものではなく、こちらで生成する共有シークレット**。
+
+```bash
+openssl rand -base64 32
+```
+
+比較は `timingSafeEqual` なので長さ・文字種の制約はない。`scripts/update-env-file.sh` は値を
+ダブルクォートで囲んで `\` `"` 改行をエスケープするため、base64 の `+ / =` はそのまま通る。
+
+### 同じ値を両側へ登録する
+
+**片方だけ登録しても連携しない。** AIDE側は既存の `subscriptions-token` と同じ形で持つ。
+
+| | trainroute（受ける側） | AIDE（叩く側） |
+| --- | --- | --- |
+| 1Password | `op://apps/trainroute/internal-api-key`（**正**） | `op://apps/aide/trainroute-token` |
+| GitHub Secret | `INTERNAL_API_KEY` | `AIDE_TRAINROUTE_TOKEN` |
+| 対応表 | `.github/secrets-manifest.tsv` | AIDEの `.github/secrets-manifest.tsv` |
+| 本番 `.env` | `.github/workflows/deploy.yml` が `update_env` で書き込む | 同左（AIDE側） |
+
+AIDE側のコネクタは未実装のため（guchi-apps/aide#33）、AIDE側の登録は実装時で間に合う。
 
 キーを更新するときは、1Passwordの値を変えてから `sync-github-secrets.sh` を実行し、再デプロイする。
-**呼び出し元（AIDE）側の値も同時に更新しないと連携が止まる。**
+**このとき両側を同時に更新すること。** 片方だけ変えると 401 で連携が止まる。

@@ -78,11 +78,13 @@ jobs:
       # 再利用ワークフロー内のinputsコンテキストはworkflow_callのinputsを指すため、
       # 呼び出し元のworkflow_dispatch入力はここで明示的に渡す。
       issue-number: ${{ inputs.issue_number }}
-      # `npm run build:ci`（next build）はDATABASE_URLが無いと通らないため、
+      # `npm run build:ci`（next build）はDATABASE_URLとNEXT_PUBLIC_*が無いと通らないため、
       # CI(.github/workflows/ci.yml)のbuildステップと同じCI専用プレースホルダーを渡す。
       # 実シークレットは絶対に書かない（secrets: inheritで別途渡る）。
       build-env: |
         DATABASE_URL=mysql://placeholder:placeholder@127.0.0.1:3306/app_trainroute
+        NEXT_PUBLIC_SUPABASE_URL=https://ci-placeholder.supabase.co
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=ci-placeholder
       # プロンプトの「- 解消後、」に続けてそのまま埋め込まれるため、文末まで含めて1行で書く。
       # YAMLの折りたたみ(>-)は改行を半角スペースへ変換し日本語の途中に空白が入るため、1行で書く。
       verify-commands: "`npm run lint`・`npm run typecheck`・`npm run build:ci` を実行し、問題がないことを確認する（`.github/workflows/ci.yml`と同じ3つ。DBサーバーは実際には起動していないが、環境変数はこのステップに既に設定済みのためCIのbuildステップと同様に成功するはず）"
