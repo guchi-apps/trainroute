@@ -58,7 +58,10 @@ JR西日本のデータを持たない。経緯と選択肢は `src/lib/transit/
   （HTMLのログイン画面を返すと fetch 側が解釈できない）
 - GUIの無い環境で画面を確認するときは `DISABLE_AUTH=true`。**`NODE_ENV=production` では常に無効**
 
-Supabase の Redirect URLs に本番URLとローカルの `/auth/callback` を登録しておく必要がある。
+**本番URLを Supabase の Redirect URLs へ登録する作業は不要。** 共有プロジェクトの Redirect URLs は
+本番サブドメインをワイルドカードで登録済みで、`https://trainroute.gucchii.com/auth/callback` は
+既に覆われている（`_docs` の `knowledge/supabase.md`）。ワイルドカードに含まれないホスト
+（`localhost`・LAN実機確認の `sslip.io` 等）だけは個別の確認が要る。
 
 ## ブランチ
 

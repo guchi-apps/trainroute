@@ -55,9 +55,10 @@ npm run db:migrate:dev
 
 駅すぱあとのアクセスキーが無くてもアプリは起動します（駅検索だけが 503 を返します）。
 
-Supabase は他アプリと共有のプロジェクトを使います。ローカルで OAuth を通す場合は、Supabase の
-Authentication > URL Configuration > Redirect URLs に `http://localhost:3000/auth/callback` を
-登録してください。GUI の無い環境では `DISABLE_AUTH=true` でログインを迂回できます
+Supabase は他アプリと共有のプロジェクトを使います。**本番URLの Redirect URLs への登録は不要です**
+（本番サブドメインはワイルドカードで登録済み）。ローカルで OAuth を通す場合だけ、Supabase の
+Authentication > URL Configuration > Redirect URLs に `http://localhost:3000/auth/callback` が
+含まれているか確認してください。GUI の無い環境では `DISABLE_AUTH=true` でログインを迂回できます
 （`NODE_ENV=production` では常に無効）。
 
 ### 検証
