@@ -24,7 +24,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 | 本番URL | https://trainroute.gucchii.com |
 | ポート | 3112（PM2、プロセス名 `trainroute`） |
 | DB | MariaDB `app_trainroute`（Prisma） |
-| 認証 | NextAuth v5（Google）+ `ALLOWED_EMAIL` |
+| 認証 | Supabase Auth（Google）+ `ALLOWED_EMAIL` |
 | 外部API | 駅すぱあと API フリープラン |
 
 ## 外部APIの制約（設計の前提）
@@ -40,6 +40,25 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 **運行情報（遅延）は未実装。** 当初はODPTを使う計画だったが、ODPTは阪急電鉄・大阪メトロ・
 JR西日本のデータを持たない。経緯と選択肢は `src/lib/transit/index.ts` の冒頭コメントにある。
 `fetchServiceStatus` は常に null を返す。**null は「平常運転」ではなく「分からない」を意味する。**
+
+## 認証（Supabase Auth）
+
+**Supabase プロジェクトは他アプリと共有している。** そのため「Supabase でログインできること」と
+「このアプリを使ってよいこと」は別に判定する。許可判定は `ALLOWED_EMAIL` で行い、
+`/auth/callback` と `proxy.ts` の**両方**に入れてある。片方だけに寄せないこと。
+
+- セッションの検証は `src/proxy.ts` → `src/lib/supabase/proxy-session.ts` で毎リクエスト行う
+- 検証済みのアドレスは `x-trainroute-user-email` ヘッダーで後段へ渡す。proxy が必ず上書き／削除
+  するため詐称は届かない。ページ・APIは `requireUserEmail()`（`src/lib/auth-user.ts`）で読む
+- **ページ側で `auth.getUser()` を呼び直さない。** 毎回 Supabase へ往復するため、1リクエストで
+  2回叩くと待ち時間がそのまま倍になる
+- `getUser()` が通信不達・5xx・429 のときはログイン画面へ戻さず 503 を返す。有効なセッションを
+  持つ利用者を、電波が悪いだけでログインし直させないため
+- `/api/*` は proxy でリダイレクトせず素通しし、各ルートハンドラが 401 JSON を返す
+  （HTMLのログイン画面を返すと fetch 側が解釈できない）
+- GUIの無い環境で画面を確認するときは `DISABLE_AUTH=true`。**`NODE_ENV=production` では常に無効**
+
+Supabase の Redirect URLs に本番URLとローカルの `/auth/callback` を登録しておく必要がある。
 
 ## ブランチ
 
@@ -153,7 +172,7 @@ Status = 今どこにいるか、Label = どんな性質・条件があるか、
 
 以下に該当する変更は自動マージせず `00.check-user` を付与してユーザーの確認を待つ。
 
-- 認証・認可（`src/auth.ts`・`src/proxy.ts`・`src/lib/internal-auth.ts`・`src/lib/allowed-users.ts`）
+- 認証・認可（`src/proxy.ts`・`src/lib/supabase/**`・`src/lib/internal-auth.ts`・`src/lib/allowed-users.ts`・`src/lib/auth-user.ts`・`src/lib/auth-header.ts`・`src/lib/dev-auth.ts`）
 - DBスキーマ変更・マイグレーション（`prisma/**`）
 - 本番環境の設定（`deploy/**`）
 - GitHub Actionsやデプロイ設定（`.github/workflows/**`）

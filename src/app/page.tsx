@@ -1,16 +1,15 @@
 import Link from "next/link";
 
-import { auth } from "@/auth";
+import { requireUserEmail } from "@/lib/auth-user";
 import { RouteList } from "@/components/route-list";
 import { listRoutes } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const session = await auth();
-  const email = session?.user?.email?.toLowerCase();
+  const email = await requireUserEmail();
 
-  // middleware が未ログインを弾いているため、ここに来る時点でセッションはある。
+  // proxy.ts が未ログインを弾いているため、ここに来る時点でセッションはある。
   // それでも型のうえでは null を取りうるので、握りつぶさず明示的に出す。
   if (!email) {
     return <p className="text-sm text-muted">ログイン情報を取得できませんでした。</p>;

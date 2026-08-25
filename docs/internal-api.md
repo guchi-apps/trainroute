@@ -2,7 +2,7 @@
 
 同一VPS上で動く他アプリ（現状は [guchi-apps/aide](https://github.com/guchi-apps/aide)）が、
 登録済みの通勤経路を参照するためのGET API。ブラウザからの利用は想定しておらず、
-NextAuthのセッションではなく**共有シークレット1本**で守る。
+Supabase のセッションではなく**共有シークレット1本**で守る。
 
 - 経緯: guchi-apps/aide#33、guchi-apps/question#7
 - 形は subscription-lists の同名ドキュメントに揃えている（AIDE側のコネクタが同じ扱いにできるため）

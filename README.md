@@ -34,7 +34,7 @@ APIが「運行情報なし」を返すとき、それは**平常運転ではな
 | フレームワーク | Next.js 16（App Router）+ TypeScript |
 | スタイリング | Tailwind CSS v4 |
 | DB | MariaDB（`app_trainroute`）+ Prisma |
-| 認証 | NextAuth v5（Google）+ 許可アドレスのリスト |
+| 認証 | Supabase Auth（Google）+ 許可アドレスのリスト |
 | 外部API | [駅すぱあと API フリープラン](https://docs.ekispert.com/v1/le/) |
 | 本番 | VPS上のPM2（ポート 3112）、Apache がリバースプロキシ |
 
@@ -54,6 +54,11 @@ npm run db:migrate:dev
 ```
 
 駅すぱあとのアクセスキーが無くてもアプリは起動します（駅検索だけが 503 を返します）。
+
+Supabase は他アプリと共有のプロジェクトを使います。ローカルで OAuth を通す場合は、Supabase の
+Authentication > URL Configuration > Redirect URLs に `http://localhost:3000/auth/callback` を
+登録してください。GUI の無い環境では `DISABLE_AUTH=true` でログインを迂回できます
+（`NODE_ENV=production` では常に無効）。
 
 ### 検証
 

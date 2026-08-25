@@ -1,9 +1,8 @@
-import { auth } from "@/auth";
+import { requireUserEmail } from "@/lib/auth-user";
 import { deleteRoute } from "@/lib/routes";
 
-export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  const email = session?.user?.email?.toLowerCase();
+export async function DELETE(_request: Request, context: RouteContext<"/api/routes/[id]">) {
+  const email = await requireUserEmail();
   if (!email) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;

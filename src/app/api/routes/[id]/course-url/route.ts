@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { requireUserEmail } from "@/lib/auth-user";
 import { db } from "@/lib/db";
 import { generateCourseUrl, tokyoDateTime } from "@/lib/ekispert/course";
 import { EkispertError, EkispertNotConfiguredError } from "@/lib/ekispert/client";
@@ -9,9 +9,8 @@ import { EkispertError, EkispertNotConfiguredError } from "@/lib/ekispert/client
  * **画面を開くたびに作らず、押されたときだけ作る。** フリープランには呼び出し回数の
  * 上限があり、一覧に並ぶ経路の分をまとめて生成すると無駄に消費するため。
  */
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  const email = session?.user?.email?.toLowerCase();
+export async function GET(request: Request, context: RouteContext<"/api/routes/[id]/course-url">) {
+  const email = await requireUserEmail();
   if (!email) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;
