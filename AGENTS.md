@@ -58,6 +58,12 @@ JR西日本のデータを持たない。経緯と選択肢は `src/lib/transit/
   （HTMLのログイン画面を返すと fetch 側が解釈できない）
 - GUIの無い環境で画面を確認するときは `DISABLE_AUTH=true`。**`NODE_ENV=production` では常に無効**
 
+**`NEXT_PUBLIC_SUPABASE_*` はビルド時に焼き込まれる。実行時の `.env` では変えられない。**
+`proxy.ts` も `src/lib/supabase/server.ts` も焼き込み値を使うため、Supabaseプロジェクトや
+publishable keyを差し替えたときは **`.env` の更新では足りず、再デプロイ（＝再ビルド）が要る**。
+`deploy.yml` の `update_env NEXT_PUBLIC_SUPABASE_*` はこの経路には効かない（実質の設定は
+buildジョブへ渡している値のほう）。2026-08-26 に本番と同じ構成で実測して確認した。
+
 **本番URLを Supabase の Redirect URLs へ登録する作業は不要。** 共有プロジェクトの Redirect URLs は
 本番サブドメインをワイルドカードで登録済みで、`https://trainroute.gucchii.com/auth/callback` は
 既に覆われている（`_docs` の `knowledge/supabase.md`）。ワイルドカードに含まれないホスト

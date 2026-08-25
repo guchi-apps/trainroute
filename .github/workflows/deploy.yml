@@ -249,6 +249,11 @@ jobs:
             update_env DB_HOST "$DB_HOST"
             update_env DB_PORT "$DB_PORT"
             update_env DB_NAME "$DB_NAME"
+            # **この2つを .env へ書いても、Supabase認証の挙動は変わらない。**
+            # NEXT_PUBLIC_* はビルド時にコードへ焼き込まれるため、実行時の .env では
+            # 上書きできない（proxy.ts・src/lib/supabase/server.ts のどちらも焼き込み値を使う。
+            # 2026-08-26 に本番と同じ構成で実測）。値を変えたときは再デプロイ＝再ビルドが要る。
+            # buildジョブへ同じ値を渡してあるのが実質の設定で、ここは他の値との一貫性のために置く。
             update_env NEXT_PUBLIC_SUPABASE_URL "$NEXT_PUBLIC_SUPABASE_URL"
             update_env NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
             update_env AUTH_URL "$AUTH_URL"
