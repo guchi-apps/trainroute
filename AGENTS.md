@@ -129,12 +129,20 @@ Status = 今どこにいるか、Label = どんな性質・条件があるか、
 | ラベル | 意味 |
 |---|---|
 | `00.check-user` | ユーザーの確認・指示が必要。どの段階でも併用する |
-| `00.qa-answered` | 質問への回答のみ完了（`00.check-user` と常に併用） |
+| `01.check-input` | 質問・確認への回答待ち（`00.check-user` の理由） |
+| `01.check-answered` | 回答済み。読むだけで実装は再開しない（同上） |
+| `01.check-blocked` | 続け方の指示待ち。エージェントは停止（同上） |
+| `01.check-plan` | 計画の承認待ち（同上） |
+| `01.check-merge` | PRのマージ待ち（同上） |
 | `11.local` | ローカル（VSCode等）で対応中。付いている間は無人実行を起動しない |
 | `21.plan-required` | 実装前に計画を提示し承認を得る |
-| `22.merge-confirm-required` | 内容によらず、developへのマージ前に必ず `00.check-user` を付ける |
+| `22.merge-confirm-required` | 内容によらず、developへのマージ前に人間の確認を挟む |
 | `23.preview-required` | PR作成前に開発サーバーでの画面確認を必須にする |
 | `24.screenshot-required` | PR作成前にスクリーンショット取得を必須にする |
+| `25.artifact-required` | PR作成前にアーティファクトでの視覚確認を必須にする |
+
+ラベルの正は `gh label list --repo guchi-apps/issue-deck --limit 100`。ここが古くなったら
+そちらに合わせる。
 
 ## バージョンと更新履歴
 
