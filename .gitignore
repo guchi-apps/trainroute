@@ -30,8 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
+# 実シークレットは絶対にコミットしない（このリポジトリは公開している）。
+# ひな形（*.example）だけは追跡する。
 .env*
+!.env.example
+!.env.local.example
 
 # vercel
 .vercel

@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - develop
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build:ci
+        env:
+          NODE_ENV: production
+          # ビルド時にDBへは接続しないが、Prismaがdatasourceの解決で値を要求する。
+          DATABASE_URL: mysql://placeholder:placeholder@127.0.0.1:3306/app_trainroute
+
+  notify:
+    needs: [lint-and-build]
+    if: always()
+    runs-on: ubuntu-latest
+
+    # GitHub側の値をここで明示的に渡す。対応表は .github/secrets-manifest.tsv。
+    env:
+      SIGNALY_WEBHOOK_URL: ${{ secrets.SIGNALY_WEBHOOK_URL }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine workflow status
+        id: status
+        run: |
+          lint_and_build="${{ needs.lint-and-build.result }}"
+          if [ "$lint_and_build" = "success" ]; then
+            result=success
+          elif [ "$lint_and_build" = "cancelled" ]; then
+            result=cancelled
+          else
+            result=failure
+          fi
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          if [ "$lint_and_build" = "success" ]; then
+            echo "jobs=lint-and-build" >> "$GITHUB_OUTPUT"
+          else
+            echo "jobs=lint-and-build: $lint_and_build" >> "$GITHUB_OUTPUT"
+          fi
+          # develop push: failure only. main PR: success, failure, and cancelled.
+          if [ "$result" = "failure" ]; then
+            echo "should_notify=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then
+            echo "should_notify=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_notify=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Signaly に通知
+        if: steps.status.outputs.should_notify == 'true'
+        # 通知はCIの合否そのものではない。ここが失敗してもrun全体を落とさない
+        # （guchi-apps/issue-deck#1302）。
+        continue-on-error: true
+        env:
+          SIGNALY_WEBHOOK_URL: ${{ env.SIGNALY_WEBHOOK_URL }}
+          NOTIFY_APP: trainroute
+          NOTIFY_KIND: CI
+          NOTIFY_STATUS: ${{ steps.status.outputs.result }}
+          NOTIFY_JOB: ${{ steps.status.outputs.jobs }}
+        run: bash .github/scripts/signaly-notify.sh

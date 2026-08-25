@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# trainroute
 
-## Getting Started
+通勤経路を登録しておき、駅すぱあとの経路検索へ一手で飛ぶための個人用アプリ。
+あわせて、同一VPS上で動く [AIDE](https://github.com/guchi-apps/aide) へ登録内容を渡す
+サーバー間参照用APIを提供する。
 
-First, run the development server:
+- 本番: https://trainroute.gucchii.com （ログインは許可したアカウントのみ）
+- 経緯: [guchi-apps/aide#33](https://github.com/guchi-apps/aide/issues/33)
+
+## できること
+
+- 駅名で駅を探して、出発駅・経由駅・到着駅を登録する
+- 経路が使う路線（事業者つき）を登録する
+- 登録した経路から「駅すぱあと for Web」の検索結果を開く
+- AIDE から `/api/internal/routes` で登録内容を読む（[仕様](docs/internal-api.md)）
+
+## できないこと（と、その理由）
+
+**所要時間・運賃をアプリの中に表示しません。** 駅すぱあと API のフリープランは、経路探索の結果を
+「駅すぱあと for Web」のURLとして返す仕様で、運賃や所要時間のJSONは返しません。数値を自前で
+組み立てると必ずずれるため、アプリはリンクを作るところまでを担当します。
+
+**運行情報（遅延）を扱いません。** 当初は ODPT（公共交通オープンデータセンター）から取る計画
+でしたが、ODPT は首都圏の事業者が中心で、**阪急電鉄・大阪メトロ・JR西日本のデータを持っていません**
+（2026-08-25 時点、データカタログの検索でいずれも0件）。代替の取得元は未定です。検討した選択肢は
+[`src/lib/transit/index.ts`](src/lib/transit/index.ts) に書いてあります。
+
+APIが「運行情報なし」を返すとき、それは**平常運転ではなく「分からない」**を意味します。
+
+## 技術構成
+
+| レイヤー | 採用 |
+|---|---|
+| フレームワーク | Next.js 16（App Router）+ TypeScript |
+| スタイリング | Tailwind CSS v4 |
+| DB | MariaDB（`app_trainroute`）+ Prisma |
+| 認証 | NextAuth v5（Google）+ 許可アドレスのリスト |
+| 外部API | [駅すぱあと API フリープラン](https://docs.ekispert.com/v1/le/) |
+| 本番 | VPS上のPM2（ポート 3112）、Apache がリバースプロキシ |
+
+## 開発
 
 ```bash
+cp .env.local.example .env.local   # 各自の値を書く
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+DBを用意する場合:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+mysql -u root -p -e "CREATE DATABASE app_trainroute DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+npm run db:migrate:dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+駅すぱあとのアクセスキーが無くてもアプリは起動します（駅検索だけが 503 を返します）。
 
-## Learn More
+### 検証
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run lint
+npm run typecheck
+npm run build:ci
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## シークレットの扱い
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**このリポジトリは公開しています。実際のキーやメールアドレスは一切含まれていません。**
 
-## Deploy on Vercel
+本番の値は 1Password（`apps/trainroute`）が正で、GitHub Secrets へは
+[`scripts/sync-github-secrets.sh`](scripts/sync-github-secrets.sh) で同期します。
+どの値をどこから取るかの対応表は [`.github/secrets-manifest.tsv`](.github/secrets-manifest.tsv)
+にあります。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+駅すぱあと API のアクセスキーは**ドメイン単位の契約**（登録ドメインは `trainroute.gucchii.com`）
+のため、他のアプリへは配りません。ブラウザにも渡さず、サーバー側の中継エンドポイントだけが使います。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## ライセンス
+
+個人利用のためのアプリで、ライセンスは設定していません。

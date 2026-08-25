@@ -1,0 +1,65 @@
+// trainroute のデータモデル。
+//
+// 保存するのは「自分の通勤経路の設定」だけで、駅・路線のマスタは持たない。
+// マスタは駅すぱあと API が持っており、複製すると更新（新駅・改称・路線再編）に
+// 追従できなくなるため、駅コードと表示用の名称だけを控える。
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/// 登録した通勤経路。
+///
+/// 利用者は1人の前提のため、所有者はメールアドレスで持つ（NextAuth を JWT セッションで
+/// 使っており User テーブルが無いため。複数人で使う必要が出た時点でアダプタを入れる）。
+model CommuteRoute {
+  id   String @id @default(cuid())
+  /// 所有者。ログインを許可したメールアドレスがそのまま入る。
+  userEmail String @db.VarChar(255)
+  /// 画面に出す名前（「通勤」「実家」など）。
+  name      String @db.VarChar(100)
+
+  /// 駅すぱあとの駅コード。表示名は控えだが、コードが引けなくなったときの手がかりになる。
+  originStationCode      String  @db.VarChar(20)
+  originStationName      String  @db.VarChar(100)
+  destinationStationCode String  @db.VarChar(20)
+  destinationStationName String  @db.VarChar(100)
+  viaStationCode         String? @db.VarChar(20)
+  viaStationName         String? @db.VarChar(100)
+
+  /// 一覧での並び順。小さいものが先。
+  sortOrder Int @default(0)
+
+  lines CommuteRouteLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userEmail, sortOrder])
+}
+
+/// 経路が使う路線。
+///
+/// **運行情報（遅延）を出す先はここになる。** 現時点で取得元を持っていないため状態は
+/// 保存していないが、「どの事業者のどの路線を見ればよいか」はここに揃えてある。
+/// 取得元が決まったら、この行に対して状態を引く実装を `src/lib/transit/` に足す。
+model CommuteRouteLine {
+  id      String       @id @default(cuid())
+  routeId String
+  route   CommuteRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  /// 事業者名（駅すぱあとの会社名。例: 阪急電鉄）。
+  operator String  @db.VarChar(50)
+  /// 駅すぱあとの運行路線コード。手入力の場合は null。
+  lineCode String? @db.VarChar(20)
+  lineName String  @db.VarChar(100)
+
+  sortOrder Int @default(0)
+
+  @@index([routeId, sortOrder])
+}
