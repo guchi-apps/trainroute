@@ -43,3 +43,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 無人実行（claude-issue-dispatch.yml）がワークツリーへcheckoutする共有リポジトリ。
+# どちらもこのリポジトリの管理対象ではない（guchi-apps/issue-deck#1151）。
+# 入れないとLintが管理外のファイルを検査し、`git add -A`で巻き込んでコミットされる。
+/.shared-context/
+/.shared-prompts/
