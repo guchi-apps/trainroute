@@ -212,4 +212,54 @@ Status = 今どこにいるか、Label = どんな性質・条件があるか、
 新しい依存関係を追加する前には、必ずユーザーに確認を取る。無人実行では確認相手がいないため、
 追加が必要だと判断した場合は追加せずに作業を止め、`00.check-user` を付与したうえで
 なぜ必要かをIssueコメントで相談する。
+
+## 全アプリ共通の共有知識（`.shared-context/`）
+
+複数アプリで共通の知識（Git/GitHub運用・Actions上でClaude Codeを動かす際の知見・デプロイ方針など）は
+このリポジトリに複製せず、共有知識リポジトリ `guchi-apps/docs` で一元管理する。
+
+- **無人実行**: `claude-issue-dispatch.yml` が実行のたびに `.shared-context/`（共有知識）と
+  `.shared-prompts/`（issue-deck側の実装プロンプト）をワークツリーへcheckoutする。
+  checkoutに失敗した場合は共有知識なしでそのまま作業を進めてよい
+- **ローカル実行**: `~/apps/_docs`（cloneしてある場合のみ）
+- **どちらも `.gitignore` 済みで、このリポジトリの管理対象ではない**（guchi-apps/issue-deck#1151）。
+  入れ忘れるとLintが管理外のファイルを検査し、`git add -A` で巻き込んでコミットされる
+
+読む順序は `CLAUDE.md`（索引）→ 自分の役割の `agent-rules/` → 必要なときだけ `knowledge/`・
+`standards/`・`guides/`。最初から全部読む必要はない。
+
+**内容が矛盾する場合は、具体的で近いものを優先する。** Issue本文・コメントの明示的な指示 →
+このファイル → このリポジトリの `docs/` → `.shared-context/` の順。共有知識は「他のアプリでは
+こうしている」という既定値であり、trainroute固有のルールを上書きしない。
+
+### 書き込みの禁止と知見の残し方
+
+- **`.shared-context/` 配下は読み取り専用として扱う。** 編集・`git add`・コミットは一切行わない
+- 実装中に得た非自明な知見は、次の2つを**両方**行って残す（目安3件まで）
+  - 実装PRに同梱して、このリポジトリの `docs/` または `AGENTS.md` へ書く
+  - 同じ内容を「知見メモ」コメント（先頭に `<!-- knowledge-candidate -->`）としてIssueへ投稿する
+- **共有知識へ格上げすべきかどうかは判定しない**（guchi-apps/issue-deck#2029）。判定と共有知識への
+  反映は `guchi-apps/docs` 側の格上げ判定エージェントがフリート全体の知見メモをまとめて行う。
+  判定を待つ必要は無く、実装はそのまま進めてよい
+- **シークレットの実値・個人のメールアドレス・自宅や勤務先が特定できる駅名・一時的な障害情報は、
+  `docs/` にも知見メモにも書かない**（このリポジトリは Public）
+
+## 共有ワークフローの参照タグ
+
+`.github/workflows/` の薄いcaller 10本（`claude-issue-dispatch`・`issue-labels`・
+`claude-review-develop`・`claude-conflict-resolve`・`claude-ci-fix`・`claude-pr-repair`・
+`release-develop-to-main`・`version-tag-check`・`deploy-retry`・`sync-secrets`）は、
+issue-deck の `reusable-*.yml` を `@workflows/vN` のタグ固定で参照している。
+
+- **`reusable-*.yml` とプロンプトはこのリポジトリへコピーしない。** issue-deck側の1つを共有する
+- **`uses:` のタグと `prompts-ref` は必ず同じ値にする。** 片方だけ上げると、新しいワークフローで
+  古いプロンプトが動く
+- **タグは10本まとめて上げる。** 上げ忘れても何も起きないため、ばらけると気づけない
+- **`on:`（トリガー定義）はcaller側にしか無い。** issue-deck側で新しいイベントを使うジョブが
+  増えても、このリポジトリのcallerに同じイベントを書き足すまでそのジョブは一度も走らない。
+  タグを上げるときは、上げ先のタグのcaller（issue-deckの `.github/workflows/` 配下の同名ファイル）と
+  `on:` を突き合わせる
+- 一括更新のPRは issue-deck の画面（設定＞フリート運用＞共有ワークフローのバージョン）から作れる。
+  `.github/scripts/signaly-notify.sh` も同じパネルの「共有スクリプト」から配られるため、
+  **こちらで独自に書き換えない**（配布で上書きされる）
 <!-- END:multi-agent-rules -->
