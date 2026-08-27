@@ -27,15 +27,21 @@ on:
     branches:
       - develop
       - main
+  # closedはcleanup-on-close（`00.check-user`の除去）、opened/editedは
+  # manual-step-label（タイトルが`[手作業]`のIssueへの`71.manual-step`付与）と
+  # manual-step-body-checkが使う。**トリガー定義はcaller側にしか無いため、
+  # 参照タグを上げるだけでは新しいイベントは届かない。**
   issues:
     types: [opened, edited, closed]
-  schedule:
-    - cron: "*/15 * * * *"
-  workflow_dispatch: {}
+  # **`schedule`は持たない（guchi-apps/issue-deck#2294）。** 以前はここに15分ごとのcronを置き、
+  # 呼ばれる側のdevelop-merge-sweep・manual-step-labelを定期的に動かしていたが、どちらも
+  # issue-deck側の巡回（`POST /api/issues/progress-sweep`）へ移り、`workflows/v27`では
+  # scheduleで動くジョブが1つも無くなった。残しても全ジョブがskipされ、空のrunが並ぶだけになる。
+  # `workflow_dispatch`も同じ理由で外す（手動起動しても動くジョブが無い）。
 
 jobs:
   labels:
-    uses: guchi-apps/issue-deck/.github/workflows/reusable-issue-labels.yml@workflows/v26
+    uses: guchi-apps/issue-deck/.github/workflows/reusable-issue-labels.yml@workflows/v27
     # 呼ばれる側の権限はcallerの付与範囲を超えられない。cleanup-on-closeジョブが
     # contents: write を要求するため、あわせてここで付与する。
     permissions:
