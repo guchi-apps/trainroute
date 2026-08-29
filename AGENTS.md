@@ -69,6 +69,33 @@ buildジョブへ渡している値のほう）。2026-08-26 に本番と同じ�
 既に覆われている（`_docs` の `knowledge/supabase.md`）。ワイルドカードに含まれないホスト
 （`localhost`・LAN実機確認の `sslip.io` 等）だけは個別の確認が要る。
 
+## PWA（ホーム画面への追加）
+
+`manifest` とアイコンだけの最小構成。**Service Worker は入れていない**（表示する内容はDBと
+駅すぱあとAPIに依存し、オフラインで開いても見るものがない。更新が古い画面で止まる副作用のほうが
+大きい）。オフライン対応の要望が来たら、この判断ごと見直す。
+
+**配信パスは `src/proxy.ts` の `matcher` の除外に合わせてある。逆ではない。**
+除外は `manifest.webmanifest`・`icons/`・`apple-icon` の3つで、ここから外れたパスで配ると
+未ログイン時にログイン画面のHTMLが返り、MIMEタイプ違いでインストールに失敗する。
+
+- `src/app/manifest.ts` — `/manifest.webmanifest` として配信される。静的な `app/manifest.json`
+  にすると `/manifest.json` になり、除外に入らない
+- `public/icons/*.png` — `/icons/...` で配信。**Next.js の `app/icon.png` 規約は使わない**
+  （`/icon.png` になり、除外に入らない）
+- `src/app/apple-icon.png` — `/apple-icon.png` として配信。iOSのホーム画面用
+- `theme-color` は `src/app/layout.tsx` の `viewport.themeColor` でライト・ダークを出し分ける。
+  manifest の `theme_color` は1色しか持てないため、そちらはライト時の値に合わせてある
+
+アイコンの原本は `assets/*.svg` の3枚（通常・maskable・apple）。PNGとICOはすべて生成物で、
+図柄を直したら `./scripts/generate-icons.sh` を流し、**出力もまとめてコミットする**
+（ビルド時には走らないため、コミットしないと本番へ出ない）。`rsvg-convert`（librsvg2-bin）と
+ImageMagick を使うが、どちらもシステム側のツールで `package.json` の依存には入れていない。
+
+**Next.js 16 が出すのは `mobile-web-app-capable` で、`apple-mobile-web-app-capable` は出ない。**
+iOS 16.4 以降は manifest の `display: standalone` を見るので実害は無いが、それ以前のiOSでは
+ホーム画面から開いてもSafariのUIが残る。
+
 ## ブランチ
 
 `develop` がデフォルト。`main` は本番。`main` への push でデプロイが走る。
