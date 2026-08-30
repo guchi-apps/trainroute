@@ -41,7 +41,7 @@ on:
 
 jobs:
   review:
-    uses: guchi-apps/issue-deck/.github/workflows/reusable-claude-review-develop.yml@workflows/v27
+    uses: guchi-apps/issue-deck/.github/workflows/reusable-claude-review-develop.yml@workflows/v29
     with:
       # 内蔵パターンでは拾えないもののうち、**どのリポジトリにも共通で置けるぶん**だけ。
       #
@@ -60,7 +60,7 @@ jobs:
         ^src/(proxy\.ts$|lib/(supabase/|internal-auth\.ts$|allowed-users\.ts$|auth-user\.ts$|auth-header\.ts$|dev-auth\.ts$)) :: 認証・認可の変更 (src/proxy.ts, src/lib/supabase/**, src/lib/internal-auth.ts, src/lib/allowed-users.ts, src/lib/auth-user.ts, src/lib/auth-header.ts, src/lib/dev-auth.ts)
       # 上の uses: と同じタグを指定する。片方だけ上げると新しいワークフローで
       # 古いプロンプトが使われる。
-      prompts-ref: workflows/v27
+      prompts-ref: workflows/v29
     secrets: inherit
     permissions:
       contents: write
