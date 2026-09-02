@@ -63,3 +63,26 @@ model CommuteRouteLine {
 
   @@index([routeId, sortOrder])
 }
+
+/// 経路検索に使う外部APIの利用枠。**1提供元につき1行を上書きする**（履歴は持たない）。
+///
+/// 正は提供元が応答ヘッダーで返す残数で、経路検索を呼ぶたびにここへ書き戻す
+/// （`src/lib/transit/quota.ts`）。利用枠を読むだけの `GET /api/internal/transit-quota` は
+/// 外部APIを叩かずこの行を返す。**残りを確かめる操作そのものが枠を消費しないため。**
+model TransitApiQuota {
+  /// 提供元の識別子（`navitime` など）。1提供元1行なので、これがそのまま主キー。
+  provider String @id @db.VarChar(50)
+
+  /// 枠の上限。提供元が返さない場合は null（残り回数だけを出す）。
+  quotaLimit Int?
+  /// 残り回数。**これが読めなかった応答では行を作らない**（呼び出し側の必須項目）。
+  remaining  Int
+  /// 枠が戻る日時。RapidAPI は「残り秒数」で返すため、保存時に日時へ直して入れる。
+  /// **暦の月初ではなく契約日からの請求サイクルで戻る**ので、こちらで計算しない。
+  resetAt    DateTime?
+  /// `provider`（提供元が返した実数） / `local`（trainroute の自前カウントによる概算）。
+  source     String    @db.VarChar(20)
+
+  /// 最後に残数を見た時刻。呼び出し側が値の古さを判断するために出す。
+  updatedAt DateTime @updatedAt
+}

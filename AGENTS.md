@@ -115,6 +115,12 @@ mysql -u root -p -e "CREATE DATABASE app_trainroute DEFAULT CHARACTER SET utf8mb
 npm run db:migrate:dev
 ```
 
+**Prisma CLI（`db:migrate:*`・`db:studio`）は `.env.local` を読まない。** 読むのは `.env` だけで、
+`DATABASE_URL` をそこに書いていないと `P1012 Environment variable not found` で止まる
+（アプリ本体は `next` が `.env.local` を読むため動く、という食い違い方をする）。`.env` も
+`.gitignore` 済みなので、`DATABASE_URL` の1行だけを置いておけばよい。
+`prisma migrate dev` はシャドウDBを作るため、DBユーザーに `CREATE` 権限も要る。
+
 ## 検証コマンド
 
 | 目的 | コマンド |

@@ -82,6 +82,73 @@ Authorization: Bearer <INTERNAL_API_KEY>
 取りうる選択肢と、実装するときの約束は `src/lib/transit/index.ts` の冒頭コメントに書いてある。
 実装されると `available: true` になり、`lines` に路線ごとの状態が入る。
 
+## `GET /api/internal/transit-quota`
+
+経路検索に使う外部APIの利用枠（残り回数）を返す。DaySpan が移動の入力画面に「残り○回」を出す
+ために使う（guchi-apps/dayspan#423）。
+
+### レスポンス
+
+```jsonc
+{
+  "generatedAt": "2026-08-27T12:40:00.000Z",
+  "providers": [
+    {
+      "key": "navitime",          // 提供元の識別子。呼び出し側はこの値で分岐しない
+      "label": "NAVITIME",        // 画面に出す名前
+      "limit": 500,               // 枠の上限。分からなければ null
+      "remaining": 463,           // 残り回数（必須）
+      "resetAt": "2026-09-03T00:00:00.000Z",  // 枠が戻る日時。分からなければ null
+      "updatedAt": "2026-08-27T12:40:00.000Z", // 最後に残数を見た時刻
+      "source": "provider"        // provider=提供元が返した実数 / local=自前カウントの概算
+    }
+  ]
+}
+```
+
+**配列の先頭が、経路検索に実際に使う提供元。** 呼び出し側の入力画面は先頭の1件を出す。
+順序は `src/lib/transit/quota.ts` の `PROVIDERS` の並びで決まる（DBの取得順ではない）。
+
+### `providers: []` を返す場合
+
+`404` や `503` にはせず、空配列を返す。呼び出し側はこれを「出す数字が無い」として、
+残り回数の区画ごと画面に出さない。
+
+| 状況 | 理由 |
+| --- | --- |
+| `NAVITIME_API_KEY` が未設定 | 経路検索を使っていない。古い残数を出しても意味が無い |
+| まだ一度も経路検索を呼んでいない | 記録が無い |
+| `resetAt` を過ぎている | 枠は戻っているのに古い残数を出すと「使い切った」と誤解させる |
+
+最後の1つは、次に経路検索を呼んだ時点で新しい残数が入って復活する。
+**間違った数字を出すより「分からない」を返すほうがよい**という、`serviceStatus` と同じ考え方。
+
+### 残数をどこから取っているか
+
+**このAPIは外部APIを叩かない。** 残りを確かめる操作そのものが枠を消費するため、
+保存済みの値を返すだけにしてある。
+
+正は **RapidAPI が応答に付けるヘッダー**（[Response Headers](https://docs.rapidapi.com/docs/response-headers)）。
+
+| ヘッダー | 保存先 |
+| --- | --- |
+| `x-ratelimit-requests-limit` | `TransitApiQuota.quotaLimit` |
+| `x-ratelimit-requests-remaining` | `TransitApiQuota.remaining` |
+| `x-ratelimit-requests-reset`（**残り秒数**） | `TransitApiQuota.resetAt`（保存時に日時へ直す） |
+
+経路検索の実装（#13）は、外部APIを呼ぶたびに `recordRapidApiQuota()` へ応答の `headers` を
+渡すこと。DBには1提供元1行を上書きし、履歴は持たない。
+
+- **残数ヘッダーが読めない応答では何も書かない。** 前回の値を残すほうが、0やnullで上書きして
+  「使い切った」ように見せるより害が小さい
+- **枠が戻るのは暦の月末ではなく契約日からの請求サイクル。** 月初でリセットする実装にすると
+  実際の枠とずれるため、`resetAt` はヘッダーの値だけを根拠にする（こちらで計算しない）
+- 提供元が残数ヘッダーを返さない経路（SBI の API Hub 等）を選んだ場合は、自分の呼び出しを
+  数えて `saveTransitQuota({ source: "local" })` で書く。呼び出し側は「概算」と分かる形で出す
+
+駅すぱあとの枠は返していない。フリープランは応答に残数を返さず `local` でしか出せないため。
+必要になったら `PROVIDERS` へ足す（レスポンスの形は複数の提供元をそのまま並べられる）。
+
 ## 動作確認
 
 ```bash
@@ -91,6 +158,10 @@ curl -s -H "Authorization: Bearer $INTERNAL_API_KEY" \
 # 経路URLも生成する
 curl -s -H "Authorization: Bearer $INTERNAL_API_KEY" \
   "http://127.0.0.1:3112/api/internal/routes?includeCourseUrl=true" | jq .
+
+# 経路検索APIの利用枠
+curl -s -H "Authorization: Bearer $INTERNAL_API_KEY" \
+  "http://127.0.0.1:3112/api/internal/transit-quota" | jq .
 
 # 認証エラー（401 が返る）
 curl -s -o /dev/null -w '%{http_code}\n' "http://127.0.0.1:3112/api/internal/routes"
