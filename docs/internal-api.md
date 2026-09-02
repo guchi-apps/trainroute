@@ -176,6 +176,11 @@ AIの見積もりへ落とす**（DaySpanの場合）。枠切れは失敗では
   （2026-09-02 確認）。DBにも Next.js の fetch キャッシュにも載せないこと
 - 運賃は `unit_{料金区分ID}` の形で複数返る。`unit_0` がきっぷの大人運賃、`unit_48` がIC運賃で、
   `unit_128` 以降は通勤定期の値段（1回の移動の運賃ではない）
+- **`order` の既定は `time_optimized` で、「上ほど早く着く」順ではない**（乗換の少なさなども
+  加味して並べ替える）。所要時間の短い順で欲しいときは `order=time` を明示する
+- **`start_time` / `goal_time` はタイムゾーンを持たない現地時刻**（`YYYY-MM-DDThh:mm:ss`）。
+  VPSのタイムゾーンはUTCなので、`toISOString()` をそのまま渡すと9時間ずれた時刻で探索される。
+  JSTの壁時計時刻を組み立てて渡すこと（`src/lib/navitime/route-transit.ts` の `tokyoLocalIso`）
 
 ## 動作確認
 

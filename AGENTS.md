@@ -244,6 +244,13 @@ Status = 今どこにいるか、Label = どんな性質・条件があるか、
 - `develop` 宛のPR本文には、対応Issue・実装内容・テスト内容・確認方法・注意点を記載する。
   developマージ時点ではissueをcloseしない運用のため、`closes #番号` / `fixes #番号` は使わず
   `#番号` のみ記載する
+- **`gh pr edit --body-file` はこのリポジトリでは失敗する。** Projects (classic) の廃止に伴う
+  GraphQL エラー（`repository.pullRequest.projectCards`）で終了コードが 0 にならず、本文も
+  更新されない。PR本文を後から直すときは REST API を直接叩く（2026-09-02 確認）
+
+  ```bash
+  gh api repos/guchi-apps/trainroute/pulls/<番号> --method PATCH -F body=@<ファイル>
+  ```
 
 ## 依存関係の追加
 
