@@ -25,7 +25,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 | ポート | 3112（PM2、プロセス名 `trainroute`） |
 | DB | MariaDB `app_trainroute`（Prisma） |
 | 認証 | Supabase Auth（Google）+ `ALLOWED_EMAIL` |
-| 外部API | 駅すぱあと API フリープラン |
+| 外部API | 駅すぱあと API フリープラン（駅・路線・URL生成）<br>NAVITIME API（RapidAPI経由。経路探索） |
 
 ## 外部APIの制約（設計の前提）
 
@@ -36,6 +36,17 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 **アクセスキーはドメイン単位の契約で、登録ドメインは `trainroute.gucchii.com`。**
 他アプリ（AIDEを含む）へ配らない。ブラウザにも出さない（`src/app/api/` の中継を必ず通す）。
+
+**所要時間を数値で返すのはNAVITIME（RapidAPI経由）だけで、駅すぱあととは別の契約。**
+`/api/internal/route-transit` だけがこちらを使う（`src/lib/navitime/`）。制約は3つ。
+
+- **無料枠は月500回のハードリミット。** 呼ばれたときだけ問い合わせる。先読み・定期取得・
+  画面からの呼び出しを入れない。使い切ると 429 を返し、呼び出し元はAIの見積もりへ落ちる
+- **応答をキャッシュへ保存してはいけない。** RapidAPI経由の利用規約 第5条第5項が
+  「本サービスを通じて当社から提供を受けたデータをキャッシュ等に保存してはならない」と
+  定めている（2026-09-02 確認）。DBにも Next.js の fetch キャッシュにも載せない
+- **返るのは平均待ち時間による探索結果で、時刻表上の特定の列車ではない。**
+  `train_data=timetable` はオプション契約が必要で、APIマーケットでは使えない
 
 **運行情報（遅延）は未実装。** 当初はODPTを使う計画だったが、ODPTは阪急電鉄・大阪メトロ・
 JR西日本のデータを持たない。経緯と選択肢は `src/lib/transit/index.ts` の冒頭コメントにある。
