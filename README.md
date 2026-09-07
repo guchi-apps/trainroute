@@ -1,5 +1,9 @@
 # trainroute
 
+> **このアプリは廃止します。** 停止・撤去の作業中です。手順とその判断の根拠は
+> [docs/decommission.md](docs/decommission.md) にまとめてあります（起点: [#40](https://github.com/guchi-apps/trainroute/issues/40)）。
+> 撤去が完了した時点でこのリポジトリはアーカイブします。
+
 通勤経路を登録しておき、駅すぱあとの経路検索へ一手で飛ぶための個人用アプリ。
 あわせて、同一VPS上で動く [AIDE](https://github.com/guchi-apps/aide) へ登録内容を渡す
 サーバー間参照用APIを提供する。
