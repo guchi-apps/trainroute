@@ -9,6 +9,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 # trainroute — Agent 向けガイド
 
+> **このアプリは廃止する。停止・撤去の作業中。**
+> 新しい機能を実装しない。撤去の順序・実機コマンド・完了確認は
+> [docs/decommission.md](docs/decommission.md) が正本で、起点は
+> [#40](https://github.com/guchi-apps/trainroute/issues/40)。
+> 以降の記述は、撤去中に既存の挙動を読み解くために残してある。
+
 通勤経路を登録して、駅すぱあとの経路検索へ一手で飛ぶための個人用アプリ。
 同一VPS上の [AIDE](https://github.com/guchi-apps/aide) へサーバー間参照用APIも提供する
 （guchi-apps/aide#33）。
