@@ -140,9 +140,13 @@ AIDE向けの `/api/internal/*` の仕様は [docs/internal-api.md](docs/interna
 
 ## 本番デプロイ
 
-`main` への push で `.github/workflows/deploy.yml` が動き、VPS上のPM2へ反映される。
-シークレットの対応表は `.github/secrets-manifest.tsv`。1Password（`apps/trainroute`）が正で、
-値を変えたら `scripts/sync-github-secrets.sh` でGitHubへ同期し、再デプロイする。
+**廃止に伴い停止済み。** VPSからの撤去（guchi-apps/vps#221）でデプロイ先が消えているため、
+`deploy.yml` は `main` への push では起動しない（`workflow_dispatch` のみ。走らせても `scp` で
+失敗する）。経緯と復旧の前提は [docs/decommission.md](docs/decommission.md) の「本番デプロイを止める」。
+
+以下は停止前の挙動。`main` への push で `.github/workflows/deploy.yml` が動き、VPS上のPM2へ
+反映されていた。シークレットの対応表は `.github/secrets-manifest.tsv`。1Password（`apps/trainroute`）が
+正で、値を変えたら `scripts/sync-github-secrets.sh` でGitHubへ同期し、再デプロイする。
 
 <!-- BEGIN:multi-agent-rules -->
 # マルチエージェント運用（GitHub Actions 無人実行）
