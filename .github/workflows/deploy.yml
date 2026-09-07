@@ -1,9 +1,17 @@
 name: Deploy to Production
 
+# **trainroute は廃止した（#40）。本番デプロイはもう行わない。**
+#
+# VPS上のデプロイ先（`TARGET_DIR`）・PM2プロセス・Apacheのvhostは guchi-apps/vps#221 で
+# 実機から撤去済み。この状態でワークフローを流すと `Upload archive` の `scp` が
+# `dest open "<TARGET_DIR>/deploy.tar.gz": No such file or directory` で必ず失敗する（#44）。
+# **一時的な失敗ではないため、再実行しても直らない。**
+#
+# そのため `push: main` での自動起動を外し、`workflow_dispatch` だけを残してある。
+# ファイルごと消していないのは、復旧するときの手順として読めるようにするため
+# （復旧するなら、実機のディレクトリ・PM2・vhost・DBの再作成が先）。
+# 撤去手順の正本は docs/decommission.md。
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
