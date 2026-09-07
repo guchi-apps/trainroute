@@ -35,7 +35,8 @@ DaySpan の作業を待たずに進めてよい。**
 1. **DaySpan の後片付け** — `src/services/trainroute/`・`src/lib/transit-quota.ts`・
    `TRAINROUTE_TOKEN`（`.github/secrets-manifest.tsv`・`.env.local.example`）を外す
 2. **AIDE の後片付け** — `briefing.ts` の `transit` から trainroute を出典として外す
-3. **VPS 実機からの撤去** — 下の「VPS での作業」
+3. **VPS 実機からの撤去** — 下の「VPS での作業」。**同じタイミングで本番デプロイの自動起動も
+   止める**（下の「本番デプロイを止める」）
 4. **シークレットの後片付け** — 1Password `apps/trainroute` と GitHub Secrets
 5. **台帳の更新** — `guchi-apps/vps` の README、`guchi-apps/issue-deck`、`guchi-apps/docs`
 6. **リポジトリのアーカイブ** — 最後に行う
@@ -85,6 +86,28 @@ rm -rf "<TARGET_DIR>"
 そのうえで **VPS の管理画面から `trainroute` の DNS レコード（A）を削除**する。
 DNSを先に消すと 4 の `certbot delete` の前に更新が失敗しうるため、順序はこのままにする。
 
+## 本番デプロイを止める
+
+**実機の撤去（3）と同じタイミングで行う。順序を空けた分だけデプロイが失敗する。**
+
+`deploy.yml` は `main` への push で起動し、`Upload archive` で `scp` によって
+`<TARGET_DIR>/deploy.tar.gz` を置く。実機のディレクトリを消した後に `main` が動くと、
+このステップが `scp: dest open "<TARGET_DIR>/deploy.tar.gz": No such file or directory` で失敗し、
+issue-deck が「デプロイ失敗」Issueを自動で起票する（[#44](https://github.com/guchi-apps/trainroute/issues/44)
+がこれ。実機の撤去の9分後に v0.3.5 のデプロイが落ちた）。
+**撤去が原因の失敗なので、再実行しても直らない。**
+
+`.github/workflows/deploy.yml` の `on:` から `push: branches: [main]` を外し、
+`workflow_dispatch` だけを残す。ファイルごと消さないのは、復旧するときの手順として読めるようにするため。
+
+- **`deploy-retry.yml` は個別に止めなくてよい。** 起動条件が `deploy.yml` の完了
+  （`workflow_run`）なので、起動元が走らなくなれば自動で止まる
+- **止めた後は `main` へマージしてもタグと GitHub Release は作られない。** バージョンのタグ付けと
+  Release の作成は `deploy.yml` の `tag`・`release` ジョブが行っているため。実際 v0.3.5 は
+  タグ（`tag` ジョブ）までは作られたが、`release` は `deploy` の失敗でスキップされている
+- **デプロイ失敗Issueは自動でcloseされない。** issue-deck が閉じる契機は「次のデプロイの成功」で、
+  デプロイをしなくなる以上その契機が来ない。撤去が済んだ時点で人が手でcloseする
+
 ## シークレットの後片付け
 
 DaySpan 側の `TRAINROUTE_TOKEN` を外した**後で**行う。
@@ -126,6 +149,9 @@ DaySpan 側の `TRAINROUTE_TOKEN` を外した**後で**行う。
 ## 完了の確認
 
 ```bash
+# 本番デプロイが main の push で起動しないこと（何も出なければ完了）
+grep -A3 '^on:' .github/workflows/deploy.yml | grep -F 'push'
+
 # 公開が止まっていること（接続できない、または他ドメインの応答になる）
 curl -sS -o /dev/null -w '%{http_code}\n' -m 10 https://trainroute.gucchii.com/ || echo "到達不可（期待どおり）"
 
