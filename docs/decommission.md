@@ -23,9 +23,14 @@
 
 ## 撤去の順序
 
-**順序を入れ替えないこと。** 特に 1 と 4 は、逆にすると DaySpan のシークレット同期が壊れる
-（DaySpan の `.github/secrets-manifest.tsv` が `op://apps/trainroute/internal-api-key` を参照して
-いるため、1Password のアイテムを先に消すと DaySpan のデプロイが値を引けなくなる）。
+**守る必要がある順序は 1 → 4 だけ。** DaySpan の `.github/secrets-manifest.tsv:59` が
+`op://apps/trainroute/internal-api-key` を参照しているため、**1Password のアイテムを先に消すと、
+DaySpan で次に `scripts/sync-github-secrets.sh` を流したときに値を引けなくなる。**
+
+**壊れる引き金は「1Passwordのアイテムを消すこと」であって、trainroute を止めることではない。**
+実行時の取得先は GitHub secret で、1Password は「値が変わったときだけ同期する正」という運用
+（`.github/secrets-manifest.tsv` の冒頭）。したがって **3（VPSからの撤去）と 6（アーカイブ）は
+DaySpan の作業を待たずに進めてよい。**
 
 1. **DaySpan の後片付け** — `src/services/trainroute/`・`src/lib/transit-quota.ts`・
    `TRAINROUTE_TOKEN`（`.github/secrets-manifest.tsv`・`.env.local.example`）を外す
@@ -87,6 +92,10 @@ DaySpan 側の `TRAINROUTE_TOKEN` を外した**後で**行う。
 - 1Password（ブラウザ・デスクトップアプリ）で `apps` ボールトの `trainroute` アイテムを削除する。
   `allowed-email`・`auth-url`・`db-name`・`ekispert-access-key`・`internal-api-key`・`target-dir`
   の6フィールドが入っている
+- あわせて `op://apps/aide/trainroute-token` のフィールドも削除する。AIDE 側は
+  `.github/secrets-manifest.tsv` にも `.env.example` にも `TRAINROUTE_*` を持っておらず、
+  **登録だけされて一度も使われていない**（`guchi-apps/docs` の `inventory/1password-apps.md:42` に
+  「参照が見つからないフィールド」として載っている）
 - GitHub Secrets はリポジトリをアーカイブしても消えないため、明示的に削除する
 
   ```bash
