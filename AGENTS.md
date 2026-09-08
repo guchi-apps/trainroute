@@ -141,8 +141,10 @@ AIDE向けの `/api/internal/*` の仕様は [docs/internal-api.md](docs/interna
 ## 本番デプロイ
 
 **廃止に伴い停止済み。** VPSからの撤去（guchi-apps/vps#221）でデプロイ先が消えているため、
-`deploy.yml` は `main` への push では起動しない（`workflow_dispatch` のみ。走らせても `scp` で
-失敗する）。経緯と復旧の前提は [docs/decommission.md](docs/decommission.md) の「本番デプロイを止める」。
+`deploy.yml` には**起動できるトリガーが1つも無い**（`on: workflow_call` だけを置き、呼び出し元は
+存在しない）。`push: main` を外すだけでは、issue-deck が「mainへマージしたのに実行が作られない」
+状態を検知して `workflow_dispatch` で起動し直し、同じ `scp` の失敗が再発した（#48）。
+経緯と復旧の前提は [docs/decommission.md](docs/decommission.md) の「本番デプロイを止める」。
 
 以下は停止前の挙動。`main` への push で `.github/workflows/deploy.yml` が動き、VPS上のPM2へ
 反映されていた。シークレットの対応表は `.github/secrets-manifest.tsv`。1Password（`apps/trainroute`）が
