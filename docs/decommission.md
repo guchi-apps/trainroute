@@ -97,16 +97,34 @@ issue-deck が「デプロイ失敗」Issueを自動で起票する（[#44](http
 がこれ。実機の撤去の9分後に v0.3.5 のデプロイが落ちた）。
 **撤去が原因の失敗なので、再実行しても直らない。**
 
-`.github/workflows/deploy.yml` の `on:` から `push: branches: [main]` を外し、
-`workflow_dispatch` だけを残す。ファイルごと消さないのは、復旧するときの手順として読めるようにするため。
+`.github/workflows/deploy.yml` の `on:` から**起動できるトリガーを全部外す**。いま置いてあるのは
+`workflow_call` だけで、呼び出し元は存在しない。ファイルごと消さないのは、復旧するときの手順として
+読めるようにするためと、issue-deck の各巡回が `.github/workflows/deploy.yml` の**実在**を見て
+挙動を変えるため（下記）。
 
+- **`push: main` を外すだけでは止まらない（[#48](https://github.com/guchi-apps/trainroute/issues/48)）。**
+  issue-deck は「mainへマージしたのに `deploy.yml` の実行が1件も作られない」状態をGitHubの
+  イベント配送漏れとみなし、`ref: main` で `workflow_dispatch` を叩いて**起動し直す**
+  （guchi-apps/issue-deck#2703 の deploy-launch 見張り）。実際 v0.3.6 のリリースではこれが働き、
+  同じ `scp` の失敗が再発してデプロイ失敗Issueが立った
+  （[run 34170272256](https://github.com/guchi-apps/trainroute/actions/runs/34170272256) は
+  `event: workflow_dispatch` / `actor: issue-deck[bot]`）
+- **`workflow_dispatch` を持たないワークフローへの起動は 422 になり、issue-deck 側は
+  「起動できないリポジトリ」として通知も再試行もせずに畳む**（`deploy-launch-sweep-run.ts` の
+  `unsupported`）。ファイルごと消すと 422 ではなくなるため、この静かな経路から外れる
 - **`deploy-retry.yml` は個別に止めなくてよい。** 起動条件が `deploy.yml` の完了
   （`workflow_run`）なので、起動元が走らなくなれば自動で止まる
 - **止めた後は `main` へマージしてもタグと GitHub Release は作られない。** バージョンのタグ付けと
   Release の作成は `deploy.yml` の `tag`・`release` ジョブが行っているため。実際 v0.3.5 は
   タグ（`tag` ジョブ）までは作られたが、`release` は `deploy` の失敗でスキップされている
 - **デプロイ失敗Issueは自動でcloseされない。** issue-deck が閉じる契機は「次のデプロイの成功」で、
-  デプロイをしなくなる以上その契機が来ない。撤去が済んだ時点で人が手でcloseする
+  デプロイをしなくなる以上その契機が来ない
+- **手でcloseするのは、issue-deck がこのリポジトリを見なくなってから。** デプロイ失敗の巡回は
+  「`deploy.yml` が実在する」かつ「mainの直近のデプロイ実行が失敗のまま」なら、追跡中のIssueが
+  無くなった時点で**新しいIssueを立て直す**（`deploy-failure-sweep-run.ts` の `findOpenTrackedIssue`
+  が閉じられた行を畳み、判定が `create` に倒れる）。直近の実行を成功に塗り替える手段はもう無いので、
+  先にリポジトリをアーカイブする（＝Issueが読み取り専用になる）か、issue-deck 側で対象から外してから
+  closeする。順序を逆にすると、同じ内容のIssueがもう1件立つ
 
 ## シークレットの後片付け
 
@@ -149,8 +167,8 @@ DaySpan 側の `TRAINROUTE_TOKEN` を外した**後で**行う。
 ## 完了の確認
 
 ```bash
-# 本番デプロイが main の push で起動しないこと（何も出なければ完了）
-grep -A3 '^on:' .github/workflows/deploy.yml | grep -F 'push'
+# 本番デプロイに起動できるトリガーが無いこと（`workflow_call` の1行だけが出れば完了）
+sed -n '/^on:/,/^$/p' .github/workflows/deploy.yml
 
 # 公開が止まっていること（接続できない、または他ドメインの応答になる）
 curl -sS -o /dev/null -w '%{http_code}\n' -m 10 https://trainroute.gucchii.com/ || echo "到達不可（期待どおり）"

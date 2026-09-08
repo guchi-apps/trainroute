@@ -7,12 +7,25 @@ name: Deploy to Production
 # `dest open "<TARGET_DIR>/deploy.tar.gz": No such file or directory` で必ず失敗する（#44）。
 # **一時的な失敗ではないため、再実行しても直らない。**
 #
-# そのため `push: main` での自動起動を外し、`workflow_dispatch` だけを残してある。
-# ファイルごと消していないのは、復旧するときの手順として読めるようにするため
-# （復旧するなら、実機のディレクトリ・PM2・vhost・DBの再作成が先）。
+# ## 起動できるトリガーを1つも持たせていない
+#
+# `push: main` を外すだけでは足りなかった（#48）。issue-deck は「mainへマージしたのに
+# `deploy.yml` の実行が1件も作られない」状態をイベントの配送漏れとみなし、`ref: main` で
+# `workflow_dispatch` を叩いて**起動し直す**（guchi-apps/issue-deck#2703）。v0.3.6 のリリースでは
+# これが働き、同じ `scp` の失敗が再発してデプロイ失敗Issue（#48）が立った。
+#
+# そのため `workflow_dispatch` も外し、**このリポジトリの中に起動できるイベントを残していない。**
+# `workflow_call` なのは「起動しない」を表せる唯一のトリガーだからで、呼び出し元は存在しない。
+# issue-deck 側は `workflow_dispatch` の無いワークフローへの起動を 422 で受け取り、
+# 「起動できないリポジトリ」として通知も再試行もせずに畳む（`deploy-launch-sweep-run.ts`）。
+#
+# **ファイルは消さずにこの場所へ残す。** 復旧するときの手順として読めるようにするためと、
+# issue-deck の各巡回が `.github/workflows/deploy.yml` の実在を見て挙動を変えるため
+# （消すと「実在するが起動できない」判定から外れ、静かに畳む経路を通らなくなる）。
+# 復旧するなら、実機のディレクトリ・PM2・vhost・DBの再作成が先。
 # 撤去手順の正本は docs/decommission.md。
 on:
-  workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: deploy-trainroute-production
